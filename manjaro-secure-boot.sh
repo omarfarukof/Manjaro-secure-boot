@@ -1,6 +1,8 @@
 echo "Installing efitools & sbsigntools"
-sudo man pacman -Syu efitools
-sudo man pacman -Syu sbsigntools
+#sudo man pacman -Syu efitools
+#sudo man pacman -Syu sbsigntools
+sudo pacman -Syu efitools
+sudo pacman -Syu sbsigntools
 echo "Installation Complete. efitools & sbsigntools have installed"
 
 echo "Creating folder \"Secure_Boot_Key\" in Home directory"
@@ -71,9 +73,10 @@ sudo cp /usr/share/libalpm/hooks/90-mkinitcpio-install.hook /etc/pacman.d/hooks/
 sudo mkdir -p /usr/local/share/libalpm/scripts/
 sudo cp /usr/share/libalpm/scripts/mkinitcpio-install /usr/local/share/libalpm/scripts/mkinitcpio-install
 
-com=" "
-while [ $com != "done" ]
-do
+
+#com=" "
+#while [ $com != "done" ]
+#do
     echo "
 # ----- # ----- # ---- #
 Have to do by myself =
@@ -87,9 +90,22 @@ sudo nano /usr/local/share/libalpm/scripts/mkinitcpio-install
 replace : install -Dm644 \"\${line}\" \"/boot/vmlinuz-\${pkgbase}\"
 with : sbsign --key ~/Secure_Boot_Key/db.key --cert ~/Secure_Boot_Key/db.crt --output \"/boot/vmlinuz-\${pkgbase}\" \"\${line}\"
 "
-    echo "Write \"done\""
-    read com
-done
+#    echo "Write \"done\""
+#    read com
+#done
+
+file=/etc/pacman.d/hooks/90-mkinitcpio-install.hook
+old="Exec = /usr/share/libalpm/scripts/mkinitcpio-install"
+new="Exec = /usr/local/share/libalpm/scripts/mkinitcpio-install"
+sudo cp $file{,.bak}
+cat $file | sed "s|$old|$new|" | sudo tee $file
+
+file=/usr/local/share/libalpm/scripts/mkinitcpio-install
+old="install -Dm644 \"\${line}\" \"/boot/vmlinuz-\${pkgbase}\""
+new="sbsign --key ~/Secure_Boot_Key/db.key --cert ~/Secure_Boot_Key/db.crt --output \"/boot/vmlinuz-\${pkgbase}\" \"\${line}\""
+sudo cp $file{,.bak}
+cat $file | sed "s|$old|$new|" | sudo tee $file
+
 
 echo "Downloading Microsoft Keys and preparing them"
 
