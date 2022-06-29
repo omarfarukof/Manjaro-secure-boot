@@ -99,13 +99,14 @@ old="Exec = /usr/share/libalpm/scripts/mkinitcpio-install"
 new="Exec = /usr/local/share/libalpm/scripts/mkinitcpio-install"
 sudo cp $file{,.bak}
 cat $file | sed "s|$old|$new|" | sudo tee $file
+sudo rm $file.bak
 
 file=/usr/local/share/libalpm/scripts/mkinitcpio-install
 old="install -Dm644 \"\${line}\" \"/boot/vmlinuz-\${pkgbase}\""
 new="sbsign --key ~/Secure_Boot_Key/db.key --cert ~/Secure_Boot_Key/db.crt --output \"/boot/vmlinuz-\${pkgbase}\" \"\${line}\""
 sudo cp $file{,.bak}
 cat $file | sed "s|$old|$new|" | sudo tee $file
-
+sudo rm $file.bak
 
 echo "Downloading Microsoft Keys and preparing them"
 
