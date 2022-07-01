@@ -1,3 +1,5 @@
+#!/bin/sh
+
 echo "Installing efitools & sbsigntools"
 #sudo man pacman -Syu efitools
 #sudo man pacman -Syu sbsigntools
@@ -10,14 +12,14 @@ mkdir -p ~/Secure_Boot_Key/backup_key
 
 echo "Creating Backups for old keys in \"back_up\" folder"
 #Backup old keys
-cd ~/Secure_Boot_Key/backup_key
+cd ~/Secure_Boot_Key/backup_key || exit
 efi-readvar -v PK -o old_PK.esl
 efi-readvar -v KEK -o old_KEK.esl
 efi-readvar -v db -o old_db.esl
 efi-readvar -v dbx -o old_dbx.esl
 
 
-cd ~/Secure_Boot_Key
+cd ~/Secure_Boot_Key || exit
 echo "
 Create a GUID for owner identification:"
 #Create a GUID for owner identification:
@@ -28,34 +30,34 @@ Creating Platform key:"
 #Platform key:
 openssl req -newkey rsa:4096 -nodes -keyout PK.key -new -x509 -sha256 -days 3650 -subj "/CN=my Platform Key/" -out PK.crt
 openssl x509 -outform DER -in PK.crt -out PK.cer
-cert-to-efi-sig-list -g "$(< GUID.txt)" PK.crt PK.esl
-sign-efi-sig-list -g "$(< GUID.txt)" -k PK.key -c PK.crt PK PK.esl PK.auth
+cert-to-efi-sig-list -g "$(cat GUID.txt)" PK.crt PK.esl
+sign-efi-sig-list -g "$(cat GUID.txt)" -k PK.key -c PK.crt PK PK.esl PK.auth
 
 #Sign an empty file to allow removing Platform Key when in "User Mode":
-sign-efi-sig-list -g "$(< GUID.txt)" -c PK.crt -k PK.key PK /dev/null rm_PK.auth
+sign-efi-sig-list -g "$(cat GUID.txt)" -c PK.crt -k PK.key PK /dev/null rm_PK.auth
 
 echo "
 Creating Key Exchange Key:"
 #Key Exchange Key:
 openssl req -newkey rsa:4096 -nodes -keyout KEK.key -new -x509 -sha256 -days 3650 -subj "/CN=my Key Exchange Key/" -out KEK.crt
 openssl x509 -outform DER -in KEK.crt -out KEK.cer
-cert-to-efi-sig-list -g "$(< GUID.txt)" KEK.crt KEK.esl
-sign-efi-sig-list -g "$(< GUID.txt)" -k PK.key -c PK.crt KEK KEK.esl KEK.auth
+cert-to-efi-sig-list -g "$(cat GUID.txt)" KEK.crt KEK.esl
+sign-efi-sig-list -g "$(cat GUID.txt)" -k PK.key -c PK.crt KEK KEK.esl KEK.auth
 
 echo "
 Creating Signature Database key:"
 #Signature Database key:
 openssl req -newkey rsa:4096 -nodes -keyout db.key -new -x509 -sha256 -days 3650 -subj "/CN=my Signature Database key/" -out db.crt
 openssl x509 -outform DER -in db.crt -out db.cer
-cert-to-efi-sig-list -g "$(< GUID.txt)" db.crt db.esl
-sign-efi-sig-list -g "$(< GUID.txt)" -k KEK.key -c KEK.crt db db.esl db.auth
+cert-to-efi-sig-list -g "$(cat GUID.txt)" db.crt db.esl
+sign-efi-sig-list -g "$(cat GUID.txt)" -k KEK.key -c KEK.crt db db.esl db.auth
 
 #Replace keys : if you wanted to replace your db key with a new one:
-#cert-to-efi-sig-list -g "$(< GUID.txt)" new_db.crt new_db.esl
-#sign-efi-sig-list -g "$(< GUID.txt)" -k KEK.key -c KEK.crt db new_db.esl new_db.auth
+#cert-to-efi-sig-list -g "$(cat GUID.txt)" new_db.crt new_db.esl
+#sign-efi-sig-list -g "$(cat GUID.txt)" -k KEK.key -c KEK.crt db new_db.esl new_db.auth
 
 #Add Key : If instead of replacing your db key, you want to add another one to the Signature Database
-#sign-efi-sig-list -a -g "$(< GUID.txt)" -k KEK.key -c KEK.crt db new_db.esl new_db.auth
+#sign-efi-sig-list -a -g "$(cat GUID.txt)" -k KEK.key -c KEK.crt db new_db.esl new_db.auth
 
 echo "
 Signing EFI binaries"
@@ -97,16 +99,16 @@ with : sbsign --key ~/Secure_Boot_Key/db.key --cert ~/Secure_Boot_Key/db.crt --o
 file=/etc/pacman.d/hooks/90-mkinitcpio-install.hook
 old="Exec = /usr/share/libalpm/scripts/mkinitcpio-install"
 new="Exec = /usr/local/share/libalpm/scripts/mkinitcpio-install"
-sudo cp $file{,.bak}
+sudo cp $file $file.bak
 cat $file | sed "s|$old|$new|" | sudo tee $file
-sudo rm $file.bak
+
 
 file=/usr/local/share/libalpm/scripts/mkinitcpio-install
 old="install -Dm644 \"\${line}\" \"/boot/vmlinuz-\${pkgbase}\""
 new="sbsign --key ~/Secure_Boot_Key/db.key --cert ~/Secure_Boot_Key/db.crt --output \"/boot/vmlinuz-\${pkgbase}\" \"\${line}\""
-sudo cp $file{,.bak}
+sudo cp $file $file.bak
 cat $file | sed "s|$old|$new|" | sudo tee $file
-sudo rm $file.bak
+
 
 echo "Downloading Microsoft Keys and preparing them"
 
@@ -120,10 +122,10 @@ sign-efi-sig-list -a -g 77fa9abd-0359-4d32-bd60-28f4e78f784b -k KEK.key -c KEK.c
 
 
 mkdir -p ~/Secure_Boot_Key/Keys/{db,dbx,KEK,PK,Win}
-cp ~/Secure_Boot_Key/PK.auth ~/Secure_Boot_Key/Keys/PK
-cp ~/Secure_Boot_Key/KEK.auth ~/Secure_Boot_Key/Keys/KEK
-cp ~/Secure_Boot_Key/db.auth ~/Secure_Boot_Key/Keys/db
-cp ~/Secure_Boot_Key/add_MS_db.auth ~/Secure_Boot_Key/Keys/Win
+cp ~/Secure_Boot_Key/PK.auth ~/Secure_Boot_Key/Keys/PK || exit
+cp ~/Secure_Boot_Key/KEK.auth ~/Secure_Boot_Key/Keys/KEK || exit
+cp ~/Secure_Boot_Key/db.auth ~/Secure_Boot_Key/Keys/db || exit
+cp ~/Secure_Boot_Key/add_MS_db.auth ~/Secure_Boot_Key/Keys/Win || exit
 
 
 echo "Installing Grub with TPM module"
@@ -135,7 +137,7 @@ sudo update-grub
 
 
 com=" "
-while [ $com != "done" ]
+while [ "$com" != "done" ]
 do
     echo "
 Now, Go to your UEFI-BIOS to manually enrool the keys
@@ -151,5 +153,5 @@ Then enroll :
 cp -r ~/Secure_Boot_Key/Keys /Location
 "
     echo "Write \"done\""
-    read com
+    read -r com
 done
